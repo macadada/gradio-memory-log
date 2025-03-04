@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import time
 from typing import Any, Literal, Optional
 
 import gradio as gr
@@ -94,7 +93,7 @@ class MemoryLog(FormComponent):
         *,
         label: str | None = None,
         info: str | None = None,
-        every: float = 0.3,
+        every: float = 0.5,
         show_label: bool | None = None,
         container: bool = True,
         scale: int | None = None,
@@ -128,10 +127,9 @@ class MemoryLog(FormComponent):
 
         self.dark = dark
         self.current_pos = None
-        self.fd = None
-        self.stop_reading = False
         self.height = height
         self.logContent = logContent
+
 
         self.xterm_allow_proposed_api = xterm_allow_proposed_api
         self.xterm_allow_transparency = xterm_allow_transparency
@@ -172,6 +170,8 @@ class MemoryLog(FormComponent):
         self.xterm_tab_stop_width = xterm_tab_stop_width
         self.xterm_windows_mode = xterm_windows_mode
 
+        self.state = gr.State(None)
+
         super().__init__(
             label=label,
             info=info,
@@ -186,13 +186,20 @@ class MemoryLog(FormComponent):
             elem_classes=elem_classes,
             render=render,
             value= self.read_memory,
+
         )
 
-        self.load(self.handle_load_event)
+        self.load(self.handle_load_event, outputs=self.state)
+
+    def handle_load_event(self, request: gr.Request) -> str:
+        return request.session_hash
 
     def handle_load_event(self):
         self.logContent = ""
         return self.logContent
+      
+    def handle_unload_event(self, request: gr.Request):
+        print("request on unload: ", request)
 
     def api_info(self) -> dict[str, Any]:
         return {"type": "string"}
