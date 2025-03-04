@@ -5,6 +5,8 @@ from __future__ import annotations
 import time
 from typing import Any, Literal, Optional
 
+import gradio as gr
+
 from gradio.components.base import FormComponent
 from gradio.events import Events
 from gradio_client.documentation import document
@@ -27,47 +29,28 @@ LogLevel = Literal["trace", "debug", "info", "warn", "error", "off"]
 
 
 @document()
-class Log(FormComponent):
+class MemoryLog(FormComponent):
     """
     Create a log component which can continuously read from a log file and display the content in a container.
     """
 
     EVENTS = [Events.load]
 
-    def find_start_position(self) -> int:
-        self.io.seek(0, 2)
-        file_size = self.io.tell()
-        lines_found = 0
-        block_size = 1024
-        blocks = []
+    def read_memory(self) -> bytes:
+        return self.logContent
 
-        while self.io.tell() > 0 and lines_found <= self.tail:
-            self.io.seek(max(self.io.tell() - block_size, 0))
-            block = self.io.read(block_size)
-            blocks.append(block)
-            lines_found += block.count(b"\n")
-            self.io.seek(-len(block), 1)
+    def update_log(self, new_content: str) -> str:
+        """Update the log content and trigger a re-render."""
+        self.logContent = new_content
+        return self.logContent
 
-        all_read_bytes = b"".join(reversed(blocks))
-        lines = all_read_bytes.splitlines()
-
-        if self.tail >= len(lines):
-            return 0
-        last_lines = b"\n".join(lines[-self.tail :])
-        return file_size - len(last_lines) - 1
-
-    def read_to_end(self) -> bytes:
-        if self.current_pos is None or self.stop_reading:
-            return None
-        self.io.seek(self.current_pos)
-        b = self.io.read().decode()
-        self.current_pos = self.io.tell()
-        return b
+    def clear(self) -> str:
+        """Clear the log content."""
+        return self.update_log("")
 
     def __init__(
         self,
-        log_file: str = None,
-        tail: int = 100,
+        logContent: str = "",
         dark: bool = False,
         height: str | int | None = 240,
         xterm_allow_proposed_api: Optional[bool] = False,
@@ -127,8 +110,7 @@ class Log(FormComponent):
         https://xtermjs.org/docs/api/terminal/interfaces/iterminaloptions/
 
         Parameters:
-            log_file: the log file path to read from.
-            tail: from the end of the file, the number of lines to start read from.
+            logContent: Content to include in the log.
             dark: if True, will render the component in dark mode.
             label: The label for this component. Appears above the component and is also used as the header if there are a table of examples for this component. If None and used in a `gr.Interface`, the label will be the name of the parameter this component is assigned to.
             info: additional component description.
@@ -143,13 +125,13 @@ class Log(FormComponent):
             elem_classes: An optional list of strings that are assigned as the classes of this component in the HTML DOM. Can be used for targeting CSS styles.
             render: If False, component will not render be rendered in the Blocks context. Should be used if the intention is to assign event listeners now but render the component later.
         """
-        self.log_file = log_file
-        self.tail = tail
+
         self.dark = dark
         self.current_pos = None
         self.fd = None
         self.stop_reading = False
         self.height = height
+        self.logContent = logContent
 
         self.xterm_allow_proposed_api = xterm_allow_proposed_api
         self.xterm_allow_transparency = xterm_allow_transparency
@@ -203,18 +185,14 @@ class Log(FormComponent):
             elem_id=elem_id,
             elem_classes=elem_classes,
             render=render,
-            value=self.read_to_end,
+            value= self.read_memory,
         )
 
         self.load(self.handle_load_event)
 
     def handle_load_event(self):
-        # prevent race condition
-        self.stop_reading = True
-        time.sleep(1)
-        self.io = open(self.log_file, "rb")
-        self.current_pos = self.find_start_position()
-        self.stop_reading = False
+        self.logContent = ""
+        return self.logContent
 
     def api_info(self) -> dict[str, Any]:
         return {"type": "string"}

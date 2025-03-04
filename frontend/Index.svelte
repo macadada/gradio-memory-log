@@ -132,9 +132,28 @@
 		};
 	});
 
-	$: if (term && value) {
-		if (value.trim() !== "") {
+	$: if (term) {
+		console.log("term is",value)
+		if (value.trim() === "") {
+			console.log("i should trim")
+			term.reset();
+		} else {
 			term.write(value.replace(/\n/g, "\n\r"));
+		}
+	}
+
+	export function clearTerminal() {
+		if (term) {
+		term.clear();  // xterm.js provides a clear() method.
+		}
+	}
+
+	// Optionally, a method to replace all content.
+	export function replaceAll(newContent: string) {
+		if (term) {
+		term.clear();
+		// Write new content after clearing.
+		term.write(newContent.replace(/\n/g, "\n\r"));
 		}
 	}
 </script>
