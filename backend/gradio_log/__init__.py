@@ -1,3 +1,3 @@
-from .log import Log
+from .log import MemoryLog
 
-__all__ = ["Log"]
+__all__ = ["MemoryLog"]

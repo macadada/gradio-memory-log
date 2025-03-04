@@ -2,7 +2,7 @@ import logging
 from pathlib import Path
 
 import gradio as gr
-from gradio_log import Log
+from gradio_log import MemoryLog
 
 
 class CustomFormatter(logging.Formatter):
@@ -26,7 +26,7 @@ class CustomFormatter(logging.Formatter):
     def format(self, record):
         log_fmt = self.FORMATS.get(record.levelno)
         formatter = logging.Formatter(log_fmt)
-        return formatter.format(record)
+        return formatter.format(record) 
 
 
 formatter = CustomFormatter()
@@ -55,14 +55,28 @@ def create_log_handler(level):
     return l
 
 
+
 with gr.Blocks() as demo:
     text = gr.Textbox(label="Enter text to write to log file")
     with gr.Row():
         for l in ["debug", "info", "warning", "error", "critical"]:
             button = gr.Button(f"log as {l}")
             button.click(fn=create_log_handler(l), inputs=text)
-    Log(log_file, dark=True)
+    logger = MemoryLog("i love cows", dark=True)
+    button = gr.Button("log as special mode")
+    def special_log(text):
+        print("text", text)
+        # Update log and return the updated value
+        return logger.update_log(text)
 
+    button.click(fn=special_log, inputs=text, outputs=logger)
+
+    def clear_log():
+    # Calling the clear method on the logger component.
+        return logger.clear() # This will invoke clearTerminal() in the Svelte component
+
+    clear_button = gr.Button("Clear Log")
+    clear_button.click(fn=clear_log, inputs=[], outputs=logger)
 
 if __name__ == "__main__":
-    demo.launch(ssr_mode=True)
+    demo.launch(ssr_mode=False)
